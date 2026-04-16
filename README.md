@@ -2,6 +2,11 @@
 
 A PWA for tracking clear aligner (Invisalign-style) treatment progress. Installable on Android via Chrome, works fully offline, no backend required.
 
+<p>
+  <img src="screenshots/setup.png" alt="Setup screen" width="240">
+  <img src="screenshots/home.png" alt="Home screen" width="240">
+</p>
+
 ## Features
 
 - **Status dashboard** — current aligner number, progress bar, countdown to next rotation (shows overdue in orange)
@@ -34,11 +39,11 @@ Push to `main` — the included GitHub Actions workflow (`.github/workflows/page
 ## Local development
 
 ```sh
-python3 -m http.server 8080
-# open http://localhost:8080
+bun run dev
+# open http://localhost:3000
 ```
 
-No build step needed — plain HTML/CSS/JS.
+No build step — plain HTML/CSS/JS.
 
 ## Data storage
 
