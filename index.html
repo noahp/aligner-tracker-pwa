@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0ea5e9" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Aligners" />
+    <meta name="description" content="Track your clear aligner treatment progress" />
+    <title>Aligner Tracker</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <!-- ═══════════════════════════════════════
+       VIEWS
+  ════════════════════════════════════════ -->
+    <div id="app">
+      <!-- Setup View -->
+      <div id="view-setup" class="view" data-view="setup">
+        <div class="setup-content">
+          <div class="setup-logo">
+            <img src="icon.svg" alt="" width="72" height="72" />
+          </div>
+          <h1>Aligner Tracker</h1>
+          <p class="setup-sub">Enter your treatment details to get started.</p>
+
+          <form id="form-setup" class="form" novalidate>
+            <div class="field">
+              <label for="f-total">Total aligners in series</label>
+              <input
+                type="number"
+                id="f-total"
+                inputmode="numeric"
+                min="1"
+                max="200"
+                placeholder="e.g. 19"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="f-interval">Rotation interval (days)</label>
+              <input
+                type="number"
+                id="f-interval"
+                inputmode="numeric"
+                min="1"
+                max="90"
+                placeholder="e.g. 14"
+                value="14"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="f-current">Current aligner number</label>
+              <input
+                type="number"
+                id="f-current"
+                inputmode="numeric"
+                min="1"
+                placeholder="e.g. 1"
+                value="1"
+                required
+              />
+            </div>
+            <div class="field">
+              <label for="f-date">Date you started wearing current aligner</label>
+              <input type="date" id="f-date" required />
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Start Tracking</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Home View -->
+      <div id="view-home" class="view hidden" data-view="home">
+        <header class="top-bar">
+          <span class="top-title">My Aligners</span>
+        </header>
+        <div class="scroll-content">
+          <!-- Current aligner card -->
+          <div class="card card-aligner">
+            <div class="aligner-row">
+              <div class="aligner-badge" id="h-badge">
+                <span class="aligner-num" id="h-num">—</span>
+              </div>
+              <div class="aligner-meta">
+                <div class="aligner-label">Current Aligner</div>
+                <div class="aligner-fraction" id="h-fraction">— of —</div>
+              </div>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="h-progress"></div>
+            </div>
+            <div class="progress-label" id="h-progress-label"></div>
+          </div>
+
+          <!-- Countdown card -->
+          <div class="card card-countdown" id="h-countdown-card">
+            <div class="countdown-top" id="h-countdown-label">Next rotation</div>
+            <div class="countdown-value" id="h-countdown">—</div>
+            <div class="countdown-date" id="h-countdown-date"></div>
+          </div>
+
+          <!-- Remaining card -->
+          <div class="card card-remaining">
+            <div class="remaining-cols">
+              <div class="remaining-col">
+                <div class="remaining-num" id="h-rem-aligners">—</div>
+                <div class="remaining-label">more after this</div>
+              </div>
+              <div class="remaining-divider"></div>
+              <div class="remaining-col">
+                <div class="remaining-num" id="h-rem-days">—</div>
+                <div class="remaining-label">days remaining</div>
+              </div>
+            </div>
+            <div class="est-end" id="h-est-end"></div>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="actions">
+            <button class="btn btn-cal" id="btn-cal">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              Add Calendar Reminders
+            </button>
+            <button class="btn btn-rotate" id="btn-rotate">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="23 4 23 10 17 10" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+              Rotate to Next Aligner
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- History View -->
+      <div id="view-history" class="view hidden" data-view="history">
+        <header class="top-bar">
+          <span class="top-title">Rotation History</span>
+          <button
+            class="icon-btn"
+            id="btn-copy"
+            title="Copy to clipboard"
+            aria-label="Copy history to clipboard"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          </button>
+        </header>
+        <div class="scroll-content">
+          <div id="history-list"></div>
+          <p id="history-empty" class="empty-msg hidden">
+            No rotations recorded yet. Use the Home tab to log your first rotation.
+          </p>
+        </div>
+      </div>
+
+      <!-- Settings View -->
+      <div id="view-settings" class="view hidden" data-view="settings">
+        <header class="top-bar">
+          <span class="top-title">Settings</span>
+        </header>
+        <div class="scroll-content">
+          <form id="form-settings" class="form" novalidate>
+            <div class="field">
+              <label for="s-total">Total aligners in series</label>
+              <input type="number" id="s-total" inputmode="numeric" min="1" max="200" required />
+            </div>
+            <div class="field">
+              <label for="s-interval">Rotation interval (days)</label>
+              <input type="number" id="s-interval" inputmode="numeric" min="1" max="90" required />
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Save Settings</button>
+          </form>
+
+          <div class="danger-zone">
+            <h3>Danger Zone</h3>
+            <button type="button" class="btn btn-danger btn-full" id="btn-reset">
+              Reset All Data
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════
+       BOTTOM NAV
+  ════════════════════════════════════════ -->
+    <nav id="bottom-nav" class="bottom-nav hidden" aria-label="Main navigation">
+      <button class="nav-item" data-target="home" aria-label="Home">
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+          <polyline points="9 22 9 12 15 12 15 22" />
+        </svg>
+        <span>Home</span>
+      </button>
+      <button class="nav-item" data-target="history" aria-label="History">
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+        </svg>
+        <span>History</span>
+      </button>
+      <button class="nav-item" data-target="settings" aria-label="Settings">
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+          />
+        </svg>
+        <span>Settings</span>
+      </button>
+    </nav>
+
+    <!-- ═══════════════════════════════════════
+       ROTATE CONFIRMATION MODAL
+  ════════════════════════════════════════ -->
+    <div
+      id="modal"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      <div class="modal-backdrop" id="modal-backdrop"></div>
+      <div class="modal-box">
+        <h2 id="modal-title">Confirm Rotation</h2>
+        <p id="modal-msg">Switch to aligner X?</p>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="modal-cancel">Cancel</button>
+          <button class="btn btn-primary" id="modal-confirm">Rotate</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

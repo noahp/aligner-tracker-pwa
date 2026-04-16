@@ -1,0 +1,19 @@
+{
+  "name": "Aligner Tracker",
+  "short_name": "Aligners",
+  "description": "Track your clear aligner treatment progress and rotation schedule",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f0f9ff",
+  "theme_color": "#0ea5e9",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

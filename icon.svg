@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="108" fill="#0ea5e9"/>
+  <!-- Tooth crown -->
+  <rect x="146" y="96" width="220" height="198" rx="38" fill="white"/>
+  <!-- Left root -->
+  <rect x="164" y="272" width="72" height="148" rx="36" fill="white"/>
+  <!-- Right root -->
+  <rect x="276" y="272" width="72" height="148" rx="36" fill="white"/>
+</svg>
