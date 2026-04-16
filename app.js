@@ -264,7 +264,7 @@ function renderHome() {
     remA > 0
       ? `Estimated completion: ${fmtDate(eed)}`
       : cd.overdue
-        ? 'Treatment period complete — nice work!'
+        ? 'Treatment period complete - nice work!'
         : `Treatment ends ${fmtDate(nrd)}`;
 
   // Rotate button

@@ -9,12 +9,12 @@ A PWA for tracking clear aligner (Invisalign-style) treatment progress. Installa
 
 ## Features
 
-- **Status dashboard** — current aligner number, progress bar, countdown to next rotation (shows overdue in orange)
-- **Rotation tracking** — tap the big green button to log a rotation; confirm dialog prevents accidents
-- **Remaining estimate** — aligners left, days to completion, estimated end date
-- **Calendar reminders** — downloads a single `.ics` file with all remaining rotation dates as all-day events (with a 9 AM alarm on each day)
-- **History log** — every rotation with duration worn; copy to clipboard for export
-- **Offline-first** — service worker caches all assets after first load
+- **Status dashboard** - current aligner number, progress bar, countdown to next rotation (shows overdue in orange)
+- **Rotation tracking** - tap the big green button to log a rotation; confirm dialog prevents accidents
+- **Remaining estimate** - aligners left, days to completion, estimated end date
+- **Calendar reminders** - downloads a single `.ics` file with all remaining rotation dates as all-day events (with a 9 AM alarm on each day)
+- **History log** - every rotation with duration worn; copy to clipboard for export
+- **Offline-first** - service worker caches all assets after first load
 
 ## Usage
 
@@ -34,7 +34,7 @@ A PWA for tracking clear aligner (Invisalign-style) treatment progress. Installa
 
 ## Deploy to GitHub Pages
 
-Push to `main` — the included GitHub Actions workflow (`.github/workflows/pages.yml`) deploys automatically. Enable it once under **Settings → Pages → Source: GitHub Actions**.
+Push to `main` - the included GitHub Actions workflow (`.github/workflows/pages.yml`) deploys automatically. Enable it once under **Settings → Pages → Source: GitHub Actions**.
 
 ## Local development
 
@@ -43,7 +43,7 @@ bun run dev
 # open http://localhost:3000
 ```
 
-No build step — plain HTML/CSS/JS.
+No build step - plain HTML/CSS/JS.
 
 ## Data storage
 
