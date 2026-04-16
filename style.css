@@ -707,3 +707,47 @@ h1 {
 .hidden {
   display: none !important;
 }
+
+/* ─── Dark Mode ─────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --c-primary-lt: #082f49;
+    --c-overdue-lt: #431407;
+    --c-bg: #0f172a;
+    --c-card: #1e293b;
+    --c-text: #f1f5f9;
+    --c-text-2: #94a3b8;
+    --c-text-3: #475569;
+    --c-border: #334155;
+    --c-nav-bg: #1e293b;
+    --shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  input[type='number'],
+  input[type='date'] {
+    background: #0f172a;
+    color-scheme: dark;
+  }
+
+  .card-countdown.overdue {
+    border-color: #7c2d12;
+  }
+
+  .btn-cal {
+    border-color: #0369a1;
+  }
+
+  .btn-cal:hover {
+    background: #075985;
+  }
+
+  .danger-zone {
+    border-color: #7f1d1d;
+  }
+
+  .toast {
+    background: #475569;
+  }
+}
