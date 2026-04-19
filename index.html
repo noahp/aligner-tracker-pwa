@@ -346,6 +346,34 @@
       </div>
     </div>
 
+    <!-- Edit History Entry Modal -->
+    <div
+      id="modal-edit"
+      class="modal hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-edit-title"
+    >
+      <div class="modal-backdrop" id="modal-edit-backdrop"></div>
+      <div class="modal-box">
+        <h2 id="modal-edit-title">Edit Entry</h2>
+        <form id="form-edit" class="form" novalidate>
+          <div class="field">
+            <label for="edit-num">Aligner number</label>
+            <input type="number" id="edit-num" inputmode="numeric" min="1" required />
+          </div>
+          <div class="field">
+            <label for="edit-date">Start date</label>
+            <input type="date" id="edit-date" required />
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" id="modal-edit-cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Toast -->
     <div id="toast" class="toast" role="alert" aria-live="polite"></div>
 

@@ -377,11 +377,25 @@ function renderHome() {
 // ─── Render: History ──────────────────────────────────────────────────────────
 
 function renderHistory() {
-  const active = getActiveSeries();
+  const allSeries = loadSeries();
   const list = document.getElementById('history-list');
   const empty = document.getElementById('history-empty');
 
-  if (!active || !active.history.length) {
+  const allEntries = [];
+  allSeries.forEach((s) => {
+    s.history.forEach((entry, idx) => {
+      allEntries.push({
+        entry,
+        seriesId: s.id,
+        seriesName: s.name,
+        entryIdx: idx,
+        totalAligners: s.totalAligners,
+        seriesHistory: s.history,
+      });
+    });
+  });
+
+  if (!allEntries.length) {
     list.innerHTML = '';
     empty.classList.remove('hidden');
     return;
@@ -389,29 +403,58 @@ function renderHistory() {
 
   empty.classList.add('hidden');
 
-  const reversed = [...active.history].reverse();
-  const nowMs = Date.now();
+  allEntries.sort((a, b) => new Date(b.entry.startDate) - new Date(a.entry.startDate));
 
-  list.innerHTML = reversed
-    .map((entry, idx) => {
-      const isCurrent = idx === 0;
-      const nextEntry = idx > 0 ? reversed[idx - 1] : null;
-      const endMs = nextEntry ? new Date(nextEntry.startDate).getTime() : nowMs;
-      const durationMs = endMs - new Date(entry.startDate).getTime();
-      const durationStr = isCurrent ? 'current' : fmtDuration(durationMs);
+  const nowMs = Date.now();
+  const activeId = loadActiveId();
+  const showSeriesTag = allSeries.length > 1;
+
+  list.innerHTML = allEntries
+    .map(({ entry, seriesId, seriesName, entryIdx, totalAligners, seriesHistory }) => {
+      const isLastInSeries = entryIdx === seriesHistory.length - 1;
+      const isCurrent = isLastInSeries && seriesId === activeId;
+      const nextInSeries = isLastInSeries ? null : seriesHistory[entryIdx + 1];
+      const endMs = nextInSeries
+        ? new Date(nextInSeries.startDate).getTime()
+        : isCurrent
+          ? nowMs
+          : null;
+      const durationMs = endMs !== null ? endMs - new Date(entry.startDate).getTime() : null;
+      const durationStr = isCurrent
+        ? 'current'
+        : durationMs != null
+          ? fmtDuration(durationMs)
+          : '—';
+      const seriesTagHtml = showSeriesTag
+        ? ` <span class="history-series-tag">${escapeHtml(seriesName)}</span>`
+        : '';
 
       return `
-      <div class="history-item">
-        <div class="history-badge${isCurrent ? ' current' : ''}">${entry.alignerNumber}</div>
-        <div class="history-info">
-          <div class="history-aligner">Aligner ${entry.alignerNumber} of ${active.totalAligners}</div>
-          <div class="history-date">Started ${fmtDate(new Date(entry.startDate))}</div>
+        <div class="history-item">
+          <div class="history-badge${isCurrent ? ' current' : ''}">${escapeHtml(String(entry.alignerNumber))}</div>
+          <div class="history-info">
+            <div class="history-aligner">Aligner ${entry.alignerNumber} of ${totalAligners}${seriesTagHtml}</div>
+            <div class="history-date">Started ${fmtDate(new Date(entry.startDate))}</div>
+          </div>
+          <div class="history-right">
+            <div class="history-duration">${durationStr}</div>
+            <button class="history-edit" data-series="${escapeHtml(seriesId)}" data-idx="${entryIdx}" aria-label="Edit">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+          </div>
         </div>
-        <div class="history-duration">${durationStr}</div>
-      </div>
-    `;
+      `;
     })
     .join('');
+
+  list.querySelectorAll('.history-edit').forEach((btn) => {
+    btn.addEventListener('click', () =>
+      openEditModal(btn.dataset.series, parseInt(btn.dataset.idx, 10))
+    );
+  });
 }
 
 // ─── Render: Settings ─────────────────────────────────────────────────────────
@@ -484,6 +527,7 @@ function renderSettings() {
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
 let pendingRotation = null;
+let editTarget = null;
 
 function openModal(nextNum, totalNum) {
   pendingRotation = nextNum;
@@ -496,6 +540,31 @@ function openModal(nextNum, totalNum) {
 function closeModal() {
   pendingRotation = null;
   document.getElementById('modal').classList.add('hidden');
+}
+
+function openEditModal(seriesId, entryIdx) {
+  const series = loadSeries();
+  const s = series.find((x) => x.id === seriesId);
+  if (!s || !s.history[entryIdx]) return;
+
+  const entry = s.history[entryIdx];
+  editTarget = { seriesId, entryIdx };
+
+  document.getElementById('modal-edit-title').textContent = `Edit Aligner ${entry.alignerNumber}`;
+  document.getElementById('edit-num').value = entry.alignerNumber;
+  document.getElementById('edit-num').max = s.totalAligners;
+
+  const d = new Date(entry.startDate);
+  document.getElementById('edit-date').value =
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  document.getElementById('modal-edit').classList.remove('hidden');
+  document.getElementById('edit-num').focus();
+}
+
+function closeEditModal() {
+  editTarget = null;
+  document.getElementById('modal-edit').classList.add('hidden');
 }
 
 // ─── Copy History ─────────────────────────────────────────────────────────────
@@ -608,8 +677,36 @@ function init() {
   document.getElementById('modal-cancel').addEventListener('click', closeModal);
   document.getElementById('modal-backdrop').addEventListener('click', closeModal);
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') {
+      closeModal();
+      closeEditModal();
+    }
   });
+
+  // ── Edit history entry
+  document.getElementById('form-edit').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    const num = parseInt(document.getElementById('edit-num').value, 10);
+    const dateVal = document.getElementById('edit-date').value;
+    if (!num || !dateVal) return;
+
+    const series = loadSeries();
+    const idx = series.findIndex((s) => s.id === editTarget.seriesId);
+    if (idx === -1) return;
+    series[idx].history[editTarget.entryIdx] = {
+      alignerNumber: num,
+      startDate: new Date(`${dateVal}T12:00:00`).toISOString(),
+    };
+    saveSeries(series);
+    closeEditModal();
+    renderHistory();
+    if (activeView === 'home') renderHome();
+    showToast('Entry updated');
+  });
+
+  document.getElementById('modal-edit-cancel').addEventListener('click', closeEditModal);
+  document.getElementById('modal-edit-backdrop').addEventListener('click', closeEditModal);
 
   // ── Calendar button
   document.getElementById('btn-cal').addEventListener('click', () => {

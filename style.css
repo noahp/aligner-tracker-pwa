@@ -587,12 +587,50 @@ h1 {
   margin-top: 1px;
 }
 
+.history-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .history-duration {
   font-size: 13px;
   font-weight: 600;
   color: var(--c-text-2);
   text-align: right;
-  flex-shrink: 0;
+}
+
+.history-edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--c-text-3);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.history-edit:hover {
+  background: var(--c-primary-lt);
+  color: var(--c-primary);
+}
+
+.history-series-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--c-primary-lt);
+  color: var(--c-primary-dk);
+  margin-left: 5px;
+  vertical-align: middle;
+  letter-spacing: 0.2px;
 }
 
 .empty-msg {
@@ -671,6 +709,7 @@ h1 {
 .modal-actions {
   display: flex;
   gap: 10px;
+  margin-top: 8px;
 }
 
 .modal-actions .btn {
