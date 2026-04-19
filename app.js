@@ -1,56 +1,91 @@
 'use strict';
 
-// ─── Constants ──────────────────────────────────────────────────────────────
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const STORAGE_SETTINGS = 'aligner_settings';
-const STORAGE_HISTORY = 'aligner_history';
+
+// Current storage keys
+const STORAGE_SERIES = 'aligner_series'; // [{id, name, totalAligners, rotationInterval, history[]}]
+const STORAGE_ACTIVE = 'aligner_active'; // active series id
+
+// Legacy keys (used only for one-time migration)
+const LEGACY_SETTINGS = 'aligner_settings';
+const LEGACY_HISTORY = 'aligner_history';
+
+// ─── ID Generation ───────────────────────────────────────────────────────────
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
 
-function loadSettings() {
+function loadSeries() {
   try {
-    const raw = localStorage.getItem(STORAGE_SETTINGS);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveSettings(s) {
-  localStorage.setItem(STORAGE_SETTINGS, JSON.stringify(s));
-}
-
-function loadHistory() {
-  try {
-    const raw = localStorage.getItem(STORAGE_HISTORY);
+    const raw = localStorage.getItem(STORAGE_SERIES);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
-function saveHistory(h) {
-  localStorage.setItem(STORAGE_HISTORY, JSON.stringify(h));
+function saveSeries(series) {
+  localStorage.setItem(STORAGE_SERIES, JSON.stringify(series));
+}
+
+function loadActiveId() {
+  return localStorage.getItem(STORAGE_ACTIVE) || null;
+}
+
+function saveActiveId(id) {
+  localStorage.setItem(STORAGE_ACTIVE, id);
+}
+
+function getActiveSeries() {
+  const series = loadSeries();
+  if (!series.length) return null;
+  const id = loadActiveId();
+  return series.find((s) => s.id === id) || series[0];
+}
+
+// ─── Migration ───────────────────────────────────────────────────────────────
+
+function migrate() {
+  if (localStorage.getItem(STORAGE_SERIES) !== null) return;
+  const raw = localStorage.getItem(LEGACY_SETTINGS);
+  if (!raw) return;
+  try {
+    const settings = JSON.parse(raw);
+    const history = JSON.parse(localStorage.getItem(LEGACY_HISTORY) || '[]');
+    const series = [
+      {
+        id: genId(),
+        name: 'Series 1',
+        totalAligners: settings.totalAligners,
+        rotationInterval: settings.rotationInterval,
+        history,
+      },
+    ];
+    saveSeries(series);
+    saveActiveId(series[0].id);
+    localStorage.removeItem(LEGACY_SETTINGS);
+    localStorage.removeItem(LEGACY_HISTORY);
+  } catch {
+    // Migration failed — start fresh
+  }
 }
 
 // ─── Calculations ─────────────────────────────────────────────────────────────
 
-/** Latest history entry (currently-wearing aligner). */
 function currentEntry(history) {
   return history.length ? history[history.length - 1] : null;
 }
 
-/** Date when the next rotation is due. */
 function nextRotationDate(entry, settings) {
   const start = new Date(entry.startDate);
   return new Date(start.getTime() + settings.rotationInterval * DAY_MS);
 }
 
-/**
- * Countdown to next rotation.
- * Returns { days, hours, totalMs, overdue }.
- */
 function countdown(entry, settings) {
   const target = nextRotationDate(entry, settings);
   const diff = target - Date.now();
@@ -60,24 +95,20 @@ function countdown(entry, settings) {
   return { days, hours, totalMs: diff, overdue: diff < 0 };
 }
 
-/** Number of aligners remaining after the current one (not including current). */
 function remainingAligners(entry, settings) {
   return Math.max(0, settings.totalAligners - entry.alignerNumber);
 }
 
-/** Estimated total days remaining (including time left on current aligner). */
 function remainingDays(entry, settings) {
   const cd = countdown(entry, settings);
   const daysOnCurrent = Math.max(0, cd.totalMs / DAY_MS);
   return Math.round(daysOnCurrent + remainingAligners(entry, settings) * settings.rotationInterval);
 }
 
-/** Estimated treatment end date. */
 function estimatedEndDate(entry, settings) {
   return new Date(Date.now() + remainingDays(entry, settings) * DAY_MS);
 }
 
-/** Overall treatment progress percentage (0–100). */
 function progressPercent(entry, settings) {
   if (settings.totalAligners === 0) return 0;
   const completed = entry.alignerNumber - 1;
@@ -86,7 +117,7 @@ function progressPercent(entry, settings) {
   return Math.min(100, ((completed + partial) / settings.totalAligners) * 100);
 }
 
-// ─── Formatting ──────────────────────────────────────────────────────────────
+// ─── Formatting ───────────────────────────────────────────────────────────────
 
 const FMT_DATE = new Intl.DateTimeFormat(undefined, {
   month: 'short',
@@ -112,6 +143,14 @@ function fmtDuration(ms) {
   return `${days} days`;
 }
 
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // ─── ICS Generation ──────────────────────────────────────────────────────────
 
 function pad(n) {
@@ -126,10 +165,6 @@ function icsUid() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}@aligner-tracker`;
 }
 
-/**
- * Generate an ICS file with one all-day event per remaining rotation.
- * Includes a VALARM reminder on the same day.
- */
 function generateICS(entry, settings) {
   const lines = [
     'BEGIN:VCALENDAR',
@@ -147,9 +182,7 @@ function generateICS(entry, settings) {
     const nextNum = entry.alignerNumber + 1 + i;
     const totalNum = settings.totalAligners;
     const dateStr = icsDateStr(rotDate);
-    // End date for all-day event is exclusive (next calendar day)
-    const rotDateNext = new Date(rotDate.getTime() + DAY_MS);
-    const dateEndStr = icsDateStr(rotDateNext);
+    const dateEndStr = icsDateStr(new Date(rotDate.getTime() + DAY_MS));
 
     lines.push(
       'BEGIN:VEVENT',
@@ -159,7 +192,7 @@ function generateICS(entry, settings) {
       `SUMMARY:Rotate to Aligner ${nextNum} of ${totalNum}`,
       `DESCRIPTION:Switch to aligner ${nextNum} of ${totalNum} today.`,
       'BEGIN:VALARM',
-      'TRIGGER:PT9H', // 9 AM on the event day (relative to all-day event start)
+      'TRIGGER:PT9H',
       'ACTION:DISPLAY',
       `DESCRIPTION:Rotate to Aligner ${nextNum} of ${totalNum}`,
       'END:VALARM',
@@ -171,8 +204,8 @@ function generateICS(entry, settings) {
   return lines.join('\r\n');
 }
 
-function downloadICS(content, filename) {
-  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' });
+function downloadFile(content, filename, type) {
+  const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -181,6 +214,36 @@ function downloadICS(content, filename) {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ─── Export / Import ─────────────────────────────────────────────────────────
+
+function exportData() {
+  const series = loadSeries();
+  const payload = { version: 1, exported: new Date().toISOString(), series };
+  const dateStr = new Date().toISOString().slice(0, 10);
+  downloadFile(
+    JSON.stringify(payload, null, 2),
+    `aligners-backup-${dateStr}.json`,
+    'application/json'
+  );
+  showToast('Backup downloaded');
+}
+
+function isValidImport(data) {
+  return (
+    data &&
+    typeof data === 'object' &&
+    Array.isArray(data.series) &&
+    data.series.every(
+      (s) =>
+        s.id &&
+        s.name &&
+        typeof s.totalAligners === 'number' &&
+        typeof s.rotationInterval === 'number' &&
+        Array.isArray(s.history)
+    )
+  );
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -215,26 +278,57 @@ function showView(name) {
   if (name === 'settings') renderSettings();
 }
 
+// ─── Setup ────────────────────────────────────────────────────────────────────
+
+function showSetup(isNew = false) {
+  document.querySelectorAll('.view').forEach((v) => v.classList.add('hidden'));
+  document.getElementById('view-setup').classList.remove('hidden');
+  if (!isNew) document.getElementById('bottom-nav').classList.add('hidden');
+
+  document.getElementById('setup-heading').textContent = isNew ? 'New Series' : 'Aligner Tracker';
+  document.getElementById('setup-desc').textContent = isNew
+    ? 'Configure your new aligner series.'
+    : 'Enter your treatment details to get started.';
+
+  const existingCount = loadSeries().length;
+  document.getElementById('f-name').value = isNew ? `Series ${existingCount + 1}` : 'Series 1';
+  document.getElementById('f-interval').value = '14';
+  document.getElementById('f-current').value = '1';
+
+  const today = new Date();
+  document.getElementById('f-date').value =
+    `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+  document.getElementById('btn-setup-cancel').classList.toggle('hidden', !isNew);
+}
+
 // ─── Render: Home ─────────────────────────────────────────────────────────────
 
 function renderHome() {
-  const settings = loadSettings();
-  const history = loadHistory();
-
-  if (!settings) {
-    showSetup();
+  const active = getActiveSeries();
+  if (!active) {
+    showSetup(false);
     return;
   }
 
-  const entry = currentEntry(history);
+  const entry = currentEntry(active.history);
   if (!entry) {
-    showSetup();
+    showSetup(false);
     return;
   }
+
+  const settings = {
+    totalAligners: active.totalAligners,
+    rotationInterval: active.rotationInterval,
+  };
+
+  // Series subtitle in top bar
+  const allSeries = loadSeries();
+  document.getElementById('h-series-sub').textContent = allSeries.length > 1 ? active.name : '';
 
   // Aligner card
   document.getElementById('h-num').textContent = entry.alignerNumber;
-  document.getElementById('h-fraction').textContent = `of ${settings.totalAligners}`;
+  document.getElementById('h-fraction').textContent = `of ${active.totalAligners}`;
 
   const pct = progressPercent(entry, settings);
   document.getElementById('h-progress').style.width = `${pct.toFixed(1)}%`;
@@ -264,12 +358,12 @@ function renderHome() {
     remA > 0
       ? `Estimated completion: ${fmtDate(eed)}`
       : cd.overdue
-        ? 'Treatment period complete - nice work!'
+        ? 'Treatment period complete — nice work!'
         : `Treatment ends ${fmtDate(nrd)}`;
 
   // Rotate button
   const rotBtn = document.getElementById('btn-rotate');
-  const isLast = entry.alignerNumber >= settings.totalAligners;
+  const isLast = entry.alignerNumber >= active.totalAligners;
   rotBtn.disabled = isLast;
   if (isLast) {
     rotBtn.innerHTML = 'All aligners done!';
@@ -283,12 +377,11 @@ function renderHome() {
 // ─── Render: History ──────────────────────────────────────────────────────────
 
 function renderHistory() {
-  const history = loadHistory();
-  const settings = loadSettings();
+  const active = getActiveSeries();
   const list = document.getElementById('history-list');
   const empty = document.getElementById('history-empty');
 
-  if (!history.length) {
+  if (!active || !active.history.length) {
     list.innerHTML = '';
     empty.classList.remove('hidden');
     return;
@@ -296,8 +389,7 @@ function renderHistory() {
 
   empty.classList.add('hidden');
 
-  // Show newest first
-  const reversed = [...history].reverse();
+  const reversed = [...active.history].reverse();
   const nowMs = Date.now();
 
   list.innerHTML = reversed
@@ -312,7 +404,7 @@ function renderHistory() {
       <div class="history-item">
         <div class="history-badge${isCurrent ? ' current' : ''}">${entry.alignerNumber}</div>
         <div class="history-info">
-          <div class="history-aligner">Aligner ${entry.alignerNumber}${settings ? ` of ${settings.totalAligners}` : ''}</div>
+          <div class="history-aligner">Aligner ${entry.alignerNumber} of ${active.totalAligners}</div>
           <div class="history-date">Started ${fmtDate(new Date(entry.startDate))}</div>
         </div>
         <div class="history-duration">${durationStr}</div>
@@ -325,25 +417,68 @@ function renderHistory() {
 // ─── Render: Settings ─────────────────────────────────────────────────────────
 
 function renderSettings() {
-  const settings = loadSettings();
-  if (!settings) return;
-  document.getElementById('s-total').value = settings.totalAligners;
-  document.getElementById('s-interval').value = settings.rotationInterval;
-}
+  const series = loadSeries();
+  const activeId = loadActiveId();
+  const active = series.find((s) => s.id === activeId) || series[0];
+  if (!active) return;
 
-// ─── Setup ────────────────────────────────────────────────────────────────────
+  // Active series form
+  document.getElementById('s-name').value = active.name;
+  document.getElementById('s-total').value = active.totalAligners;
+  document.getElementById('s-interval').value = active.rotationInterval;
 
-function showSetup() {
-  document.querySelectorAll('.view').forEach((v) => v.classList.add('hidden'));
-  document.getElementById('view-setup').classList.remove('hidden');
-  document.getElementById('bottom-nav').classList.add('hidden');
+  // Series list
+  const listEl = document.getElementById('series-list');
+  listEl.innerHTML = series
+    .map(
+      (s) => `
+    <div class="series-item${s.id === activeId ? ' series-active' : ''}">
+      <div class="series-info">
+        <div class="series-name">${escapeHtml(s.name)}</div>
+        <div class="series-desc">${s.totalAligners} aligners · ${s.rotationInterval}-day rotation</div>
+      </div>
+      <div class="series-actions">
+        ${
+          s.id === activeId
+            ? '<span class="series-tag">Active</span>'
+            : `<button class="btn-sm" data-switch="${escapeHtml(s.id)}">Switch</button>`
+        }
+        ${
+          series.length > 1
+            ? `<button class="btn-icon series-del" data-del="${escapeHtml(s.id)}" aria-label="Delete ${escapeHtml(s.name)}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+              </button>`
+            : ''
+        }
+      </div>
+    </div>
+  `
+    )
+    .join('');
 
-  // Default date to today
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = pad(today.getMonth() + 1);
-  const dd = pad(today.getDate());
-  document.getElementById('f-date').value = `${yyyy}-${mm}-${dd}`;
+  listEl.querySelectorAll('[data-switch]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      saveActiveId(btn.dataset.switch);
+      renderSettings();
+      showToast('Switched series');
+    });
+  });
+
+  listEl.querySelectorAll('[data-del]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.del;
+      const s = series.find((x) => x.id === id);
+      if (!s || !confirm(`Delete "${s.name}"? This cannot be undone.`)) return;
+      const updated = series.filter((x) => x.id !== id);
+      saveSeries(updated);
+      if (loadActiveId() === id) saveActiveId(updated[0]?.id || null);
+      renderSettings();
+      showToast(`Deleted "${s.name}"`);
+    });
+  });
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -366,23 +501,21 @@ function closeModal() {
 // ─── Copy History ─────────────────────────────────────────────────────────────
 
 function copyHistoryToClipboard() {
-  const history = loadHistory();
-  const settings = loadSettings();
-  if (!history.length) {
+  const active = getActiveSeries();
+  if (!active || !active.history.length) {
     showToast('No history to copy');
     return;
   }
 
-  const lines = ['Aligner Rotation History', '========================'];
-  history.forEach((entry, i) => {
-    const next = history[i + 1];
+  const lines = [`${active.name} — Rotation History`, '========================'];
+  active.history.forEach((entry, i) => {
+    const next = active.history[i + 1];
     const durationMs = next
       ? new Date(next.startDate).getTime() - new Date(entry.startDate).getTime()
       : null;
-    const total = settings ? ` of ${settings.totalAligners}` : '';
     const dur = durationMs != null ? `  (${fmtDuration(durationMs)})` : '  (current)';
     lines.push(
-      `Aligner ${entry.alignerNumber}${total}: started ${fmtDate(new Date(entry.startDate))}${dur}`
+      `Aligner ${entry.alignerNumber} of ${active.totalAligners}: started ${fmtDate(new Date(entry.startDate))}${dur}`
     );
   });
 
@@ -395,33 +528,48 @@ function copyHistoryToClipboard() {
 // ─── Event Wiring ────────────────────────────────────────────────────────────
 
 function init() {
-  // Register service worker
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
 
+  migrate();
+
   // ── Setup form
   document.getElementById('form-setup').addEventListener('submit', (e) => {
     e.preventDefault();
+    const name = document.getElementById('f-name').value.trim();
     const total = parseInt(document.getElementById('f-total').value, 10);
     const interval = parseInt(document.getElementById('f-interval').value, 10);
     const current = parseInt(document.getElementById('f-current').value, 10);
-    const dateVal = document.getElementById('f-date').value; // YYYY-MM-DD
+    const dateVal = document.getElementById('f-date').value;
 
-    if (!total || !interval || !current || !dateVal) return;
+    if (!name || !total || !interval || !current || !dateVal) return;
     if (current > total) {
       showToast('Current aligner cannot exceed total');
       return;
     }
 
-    // Interpret entered date as local noon to avoid timezone boundary issues
-    const startDate = new Date(`${dateVal}T12:00:00`);
+    const startDate = new Date(`${dateVal}T12:00:00`).toISOString();
+    const newSeries = {
+      id: genId(),
+      name,
+      totalAligners: total,
+      rotationInterval: interval,
+      history: [{ alignerNumber: current, startDate }],
+    };
 
-    saveSettings({ totalAligners: total, rotationInterval: interval });
-    saveHistory([{ alignerNumber: current, startDate: startDate.toISOString() }]);
+    const all = loadSeries();
+    all.push(newSeries);
+    saveSeries(all);
+    saveActiveId(newSeries.id);
 
     document.getElementById('bottom-nav').classList.remove('hidden');
     showView('home');
+  });
+
+  // ── Setup cancel
+  document.getElementById('btn-setup-cancel').addEventListener('click', () => {
+    showView('settings');
   });
 
   // ── Bottom nav
@@ -431,32 +579,32 @@ function init() {
 
   // ── Rotate button
   document.getElementById('btn-rotate').addEventListener('click', () => {
-    const settings = loadSettings();
-    const history = loadHistory();
-    const entry = currentEntry(history);
-    if (!entry || !settings) return;
-
+    const active = getActiveSeries();
+    if (!active) return;
+    const entry = currentEntry(active.history);
+    if (!entry) return;
     const nextNum = entry.alignerNumber + 1;
-    if (nextNum > settings.totalAligners) return;
-
-    openModal(nextNum, settings.totalAligners);
+    if (nextNum > active.totalAligners) return;
+    openModal(nextNum, active.totalAligners);
   });
 
   // ── Modal confirm
   document.getElementById('modal-confirm').addEventListener('click', () => {
     if (pendingRotation == null) return;
-    const history = loadHistory();
-    history.push({
+    const series = loadSeries();
+    const idx = series.findIndex((s) => s.id === loadActiveId());
+    if (idx === -1) return;
+    series[idx].history.push({
       alignerNumber: pendingRotation,
       startDate: new Date().toISOString(),
     });
-    saveHistory(history);
+    saveSeries(series);
     closeModal();
     renderHome();
     showToast(`Switched to aligner ${pendingRotation} 🎉`);
   });
 
-  // ── Modal cancel / backdrop
+  // ── Modal cancel / backdrop / Escape
   document.getElementById('modal-cancel').addEventListener('click', closeModal);
   document.getElementById('modal-backdrop').addEventListener('click', closeModal);
   document.addEventListener('keydown', (e) => {
@@ -465,62 +613,100 @@ function init() {
 
   // ── Calendar button
   document.getElementById('btn-cal').addEventListener('click', () => {
-    const settings = loadSettings();
-    const history = loadHistory();
-    const entry = currentEntry(history);
-    if (!entry || !settings) return;
-
+    const active = getActiveSeries();
+    if (!active) return;
+    const entry = currentEntry(active.history);
+    if (!entry) return;
+    const settings = {
+      totalAligners: active.totalAligners,
+      rotationInterval: active.rotationInterval,
+    };
     const rem = remainingAligners(entry, settings);
     if (rem === 0) {
       showToast('No more rotations to schedule');
       return;
     }
-
     const ics = generateICS(entry, settings);
-    downloadICS(ics, 'aligner-rotations.ics');
+    const slug = active.name.toLowerCase().replace(/\s+/g, '-');
+    downloadFile(ics, `${slug}-rotations.ics`, 'text/calendar;charset=utf-8');
     showToast(`Downloaded ${rem} calendar event${rem > 1 ? 's' : ''}`);
   });
 
   // ── Copy history
   document.getElementById('btn-copy').addEventListener('click', copyHistoryToClipboard);
 
-  // ── Settings form
+  // ── Settings: save active series
   document.getElementById('form-settings').addEventListener('submit', (e) => {
     e.preventDefault();
+    const name = document.getElementById('s-name').value.trim();
     const total = parseInt(document.getElementById('s-total').value, 10);
     const interval = parseInt(document.getElementById('s-interval').value, 10);
-    if (!total || !interval) return;
+    if (!name || !total || !interval) return;
 
-    saveSettings({ totalAligners: total, rotationInterval: interval });
+    const series = loadSeries();
+    const idx = series.findIndex((s) => s.id === loadActiveId());
+    if (idx === -1) return;
+    series[idx] = { ...series[idx], name, totalAligners: total, rotationInterval: interval };
+    saveSeries(series);
     showToast('Settings saved');
     renderHome();
+  });
+
+  // ── Add new series
+  document.getElementById('btn-add-series').addEventListener('click', () => showSetup(true));
+
+  // ── Export
+  document.getElementById('btn-export').addEventListener('click', exportData);
+
+  // ── Import
+  document.getElementById('btn-import').addEventListener('click', () => {
+    document.getElementById('input-import').click();
+  });
+
+  document.getElementById('input-import').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = JSON.parse(evt.target.result);
+        if (!isValidImport(data)) throw new Error('invalid');
+        const count = data.series.length;
+        if (!confirm(`Import ${count} series? This will replace all current data.`)) return;
+        saveSeries(data.series);
+        saveActiveId(data.series[0].id);
+        document.getElementById('bottom-nav').classList.remove('hidden');
+        showView('home');
+        showToast(`Imported ${count} series`);
+      } catch {
+        showToast('Import failed — invalid file');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   });
 
   // ── Reset
   document.getElementById('btn-reset').addEventListener('click', () => {
     if (!confirm('Reset all data? This cannot be undone.')) return;
-    localStorage.removeItem(STORAGE_SETTINGS);
-    localStorage.removeItem(STORAGE_HISTORY);
+    localStorage.removeItem(STORAGE_SERIES);
+    localStorage.removeItem(STORAGE_ACTIVE);
     document.getElementById('bottom-nav').classList.add('hidden');
-    showSetup();
+    showSetup(false);
   });
 
-  // ── Visibility: refresh countdown when app comes back to foreground
+  // ── Refresh on foreground / tick
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && activeView === 'home') renderHome();
   });
-
-  // ── Tick: update countdown every minute
   setInterval(() => {
     if (!document.hidden && activeView === 'home') renderHome();
   }, 60_000);
 
   // ── Initial routing
-  const settings = loadSettings();
-  const history = loadHistory();
-
-  if (!settings || !history.length) {
-    showSetup();
+  const active = getActiveSeries();
+  if (!active || !active.history.length) {
+    showSetup(false);
   } else {
     document.getElementById('bottom-nav').classList.remove('hidden');
     showView('home');

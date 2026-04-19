@@ -26,10 +26,20 @@
           <div class="setup-logo">
             <img src="icon.svg" alt="" width="72" height="72" />
           </div>
-          <h1>Aligner Tracker</h1>
-          <p class="setup-sub">Enter your treatment details to get started.</p>
+          <h1 id="setup-heading">Aligner Tracker</h1>
+          <p class="setup-sub" id="setup-desc">Enter your treatment details to get started.</p>
 
           <form id="form-setup" class="form" novalidate>
+            <div class="field">
+              <label for="f-name">Series name</label>
+              <input
+                type="text"
+                id="f-name"
+                placeholder="e.g. Series 1"
+                value="Series 1"
+                required
+              />
+            </div>
             <div class="field">
               <label for="f-total">Total aligners in series</label>
               <input
@@ -72,6 +82,9 @@
               <input type="date" id="f-date" required />
             </div>
             <button type="submit" class="btn btn-primary btn-full">Start Tracking</button>
+            <button type="button" class="btn btn-ghost btn-full hidden" id="btn-setup-cancel">
+              Cancel
+            </button>
           </form>
         </div>
       </div>
@@ -79,7 +92,10 @@
       <!-- Home View -->
       <div id="view-home" class="view hidden" data-view="home">
         <header class="top-bar">
-          <span class="top-title">My Aligners</span>
+          <div class="top-bar-left">
+            <span class="top-title">My Aligners</span>
+            <span class="top-sub" id="h-series-sub"></span>
+          </div>
         </header>
         <div class="scroll-content">
           <!-- Current aligner card -->
@@ -201,17 +217,48 @@
           <span class="top-title">Settings</span>
         </header>
         <div class="scroll-content">
-          <form id="form-settings" class="form" novalidate>
-            <div class="field">
-              <label for="s-total">Total aligners in series</label>
-              <input type="number" id="s-total" inputmode="numeric" min="1" max="200" required />
-            </div>
-            <div class="field">
-              <label for="s-interval">Rotation interval (days)</label>
-              <input type="number" id="s-interval" inputmode="numeric" min="1" max="90" required />
-            </div>
-            <button type="submit" class="btn btn-primary btn-full">Save Settings</button>
-          </form>
+          <p class="section-label">Active Series</p>
+          <div class="card">
+            <form id="form-settings" class="form" novalidate>
+              <div class="field">
+                <label for="s-name">Name</label>
+                <input type="text" id="s-name" required />
+              </div>
+              <div class="field">
+                <label for="s-total">Total aligners</label>
+                <input type="number" id="s-total" inputmode="numeric" min="1" max="200" required />
+              </div>
+              <div class="field">
+                <label for="s-interval">Rotation interval (days)</label>
+                <input
+                  type="number"
+                  id="s-interval"
+                  inputmode="numeric"
+                  min="1"
+                  max="90"
+                  required
+                />
+              </div>
+              <button type="submit" class="btn btn-primary btn-full">Save</button>
+            </form>
+          </div>
+
+          <p class="section-label">All Series</p>
+          <div id="series-list" class="series-list"></div>
+          <button type="button" class="btn btn-ghost btn-full" id="btn-add-series">
+            + Add New Series
+          </button>
+
+          <p class="section-label">Data</p>
+          <div class="data-card">
+            <button type="button" class="btn btn-ghost btn-full" id="btn-export">
+              ↓ Export Backup
+            </button>
+            <button type="button" class="btn btn-ghost btn-full" id="btn-import">
+              ↑ Import Backup
+            </button>
+            <input type="file" id="input-import" accept=".json" class="hidden" />
+          </div>
 
           <div class="danger-zone">
             <h3>Danger Zone</h3>
