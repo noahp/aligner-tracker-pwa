@@ -654,6 +654,23 @@ h1 {
   border: 1.5px solid #fecaca;
 }
 
+.github-link {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--c-text-3);
+  text-decoration: none;
+  opacity: 0.6;
+  padding: 4px 2px;
+  transition: opacity 0.15s;
+}
+
+.github-link:hover {
+  opacity: 1;
+}
+
 .danger-zone h3 {
   font-size: 13px;
   font-weight: 700;
@@ -928,5 +945,57 @@ h1 {
 
   .toast {
     background: #475569;
+  }
+}
+
+/* ─── Desktop layout (3-column side-by-side) ────────────────── */
+@media (min-width: 900px) {
+  #app {
+    display: flex;
+    flex-direction: row;
+    position: relative;
+  }
+
+  /* All 3 main views always visible, ignoring JS hide/show */
+  #view-home,
+  #view-history,
+  #view-settings {
+    display: flex !important;
+    position: static;
+    flex: 1;
+    min-width: 0;
+    border-right: 1px solid var(--c-border);
+  }
+
+  #view-settings {
+    border-right: none;
+  }
+
+  /* Setup stays as a full-screen overlay */
+  #view-setup {
+    position: absolute;
+    inset: 0;
+  }
+
+  .bottom-nav {
+    display: none !important;
+  }
+
+  .scroll-content {
+    padding-bottom: 20px;
+  }
+
+  /* Center modal as a dialog instead of a bottom sheet */
+  .modal {
+    align-items: center;
+    padding: 24px;
+  }
+
+  .modal-box {
+    border-radius: var(--radius-lg);
+  }
+
+  .toast {
+    bottom: 24px;
   }
 }
