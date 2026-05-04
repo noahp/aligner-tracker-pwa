@@ -669,9 +669,10 @@ function init() {
       startDate: new Date().toISOString(),
     });
     saveSeries(series);
+    const confirmedNum = pendingRotation;
     closeModal();
     renderHome();
-    showToast(`Switched to aligner ${pendingRotation} 🎉`);
+    showToast(`Switched to aligner ${confirmedNum} 🎉`);
   });
 
   // ── Modal cancel / backdrop / Escape
