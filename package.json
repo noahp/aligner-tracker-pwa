@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun dev.js",
+    "dev": "node dev.js",
     "lint": "eslint app.js sw.js",
     "lint:fix": "eslint --fix app.js sw.js",
     "format": "prettier --write .",
