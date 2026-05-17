@@ -1,5 +1,9 @@
 'use strict';
 
+// ─── Build Info ──────────────────────────────────────────────────────────────
+// __BUILD_SHA__ and __BUILD_DATE__ are replaced at deploy time by CI.
+const BUILD_INFO = { sha: '__BUILD_SHA__', date: '__BUILD_DATE__' };
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -332,7 +336,7 @@ function renderHome() {
 
   const pct = progressPercent(entry, settings);
   document.getElementById('h-progress').style.width = `${pct.toFixed(1)}%`;
-  document.getElementById('h-progress-label').textContent = `${Math.round(pct)}% complete`;
+  document.getElementById('h-progress-pct').textContent = `${Math.round(pct)}%`;
 
   // Countdown card
   const cd = countdown(entry, settings);
@@ -522,6 +526,42 @@ function renderSettings() {
       showToast(`Deleted "${s.name}"`);
     });
   });
+
+  renderBuildInfo();
+}
+
+function renderBuildInfo() {
+  const el = document.getElementById('build-info');
+  if (!el) return;
+  const isDev = BUILD_INFO.sha.startsWith('__');
+  const sha = isDev ? 'dev' : BUILD_INFO.sha.slice(0, 7);
+  const date = BUILD_INFO.date.startsWith('__') ? 'local' : BUILD_INFO.date;
+  el.textContent = `${sha} · ${date}`;
+  if (isDev) {
+    el.removeAttribute('href');
+  } else {
+    el.href = `https://github.com/noahp/aligner-tracker-pwa/commits/${BUILD_INFO.sha}`;
+  }
+}
+
+async function checkForUpdates() {
+  showToast('Checking for updates…');
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.update();
+        if (reg.waiting) {
+          reg.waiting.postMessage('SKIP_WAITING');
+          return; // controllerchange handler will reload
+        }
+      }
+    }
+    // No waiting worker — force a network-fresh reload of the page.
+    window.location.reload();
+  } catch {
+    window.location.reload();
+  }
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -598,8 +638,18 @@ function copyHistoryToClipboard() {
 
 function init() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-    navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
+    navigator.serviceWorker.register('./sw.js').then((reg) => {
+      reg?.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') reg?.update().catch(() => {});
+      });
+    }).catch(() => {});
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload();
+    });
   }
 
   migrate();
@@ -784,6 +834,9 @@ function init() {
     reader.readAsText(file);
     e.target.value = '';
   });
+
+  // ── Check for updates
+  document.getElementById('btn-check-updates').addEventListener('click', checkForUpdates);
 
   // ── Reset
   document.getElementById('btn-reset').addEventListener('click', () => {

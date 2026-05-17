@@ -24,6 +24,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Inject build version
+        run: |
+          DATE="$(date -u +'%Y-%m-%d %H:%M UTC')"
+          VERSION="${GITHUB_SHA::7}-$(date -u +'%Y%m%d%H%M%S')"
+          sed -i "s/__BUILD_VERSION__/${VERSION}/g" sw.js
+          sed -i "s/__BUILD_SHA__/${GITHUB_SHA}/g" app.js
+          sed -i "s|__BUILD_DATE__|${DATE}|g" app.js
+
       - name: Setup Pages
         uses: actions/configure-pages@v6
 

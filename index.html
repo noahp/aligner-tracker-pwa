@@ -109,10 +109,13 @@
                 <div class="aligner-fraction" id="h-fraction">— of —</div>
               </div>
             </div>
+            <div class="progress-headline">
+              <span class="progress-pct" id="h-progress-pct">—%</span>
+              <span class="progress-pct-label">complete</span>
+            </div>
             <div class="progress-track">
               <div class="progress-fill" id="h-progress"></div>
             </div>
-            <div class="progress-label" id="h-progress-label"></div>
           </div>
 
           <!-- Countdown card -->
@@ -258,6 +261,17 @@
               ↑ Import Backup
             </button>
             <input type="file" id="input-import" accept=".json" class="hidden" />
+          </div>
+
+          <p class="section-label">About</p>
+          <div class="card about-card">
+            <div class="about-row">
+              <span class="about-label">Version</span>
+              <a class="about-value" id="build-info" target="_blank" rel="noopener">—</a>
+            </div>
+            <button type="button" class="btn btn-ghost btn-full" id="btn-check-updates">
+              ↻ Check for Updates
+            </button>
           </div>
 
           <div class="danger-zone">

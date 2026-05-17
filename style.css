@@ -187,12 +187,34 @@ img {
   color: var(--c-text);
 }
 
+.progress-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.progress-pct {
+  font-size: 44px;
+  line-height: 1;
+  font-weight: 800;
+  color: var(--c-primary);
+  letter-spacing: -1px;
+}
+
+.progress-pct-label {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--c-text-3);
+}
+
 .progress-track {
-  height: 8px;
+  height: 10px;
   background: var(--c-border);
   border-radius: 99px;
   overflow: hidden;
-  margin-bottom: 6px;
 }
 
 .progress-fill {
@@ -203,10 +225,35 @@ img {
   width: 0%;
 }
 
-.progress-label {
-  font-size: 12px;
+.about-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.about-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.about-label {
   color: var(--c-text-3);
-  text-align: right;
+  font-weight: 600;
+}
+
+.about-value {
+  color: var(--c-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+a.about-value:hover {
+  color: var(--c-primary);
+  text-decoration: underline;
 }
 
 /* Countdown card */
